@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # Django web application
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ..:/code
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - ../.env
+    container_name: "evreka-backend"
+
+  # PostgreSQL database
+  db:
+    image: postgres:15
+    volumes:
+      - /var/lib/postgresql_15/data:/var/lib/postgresql/data
+    container_name: "evreka-db"
+    env_file:
+      - ../.env
+
+  # RabbitMQ message broker
+  rabbitmq:
+    image: rabbitmq:3.11-management
+    ports:
+      - "5672:5672"  # AMQP protocol port
+      - "15672:15672"  # Management interface port
+    container_name: "evreka-rabbitmq"
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+
+  # Celery worker
+  celery:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ..:/code
+    depends_on:
+      - web
+      - db
+      - rabbitmq
+    env_file:
+      - ../.env
+    command: ["celery", "-A", "app", "worker", "--loglevel=info"]
+    container_name: "evreka-celery"
+
+  # Celery beat scheduler
+  celery-beat:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ..:/code
+    depends_on:
+      - celery
+    env_file:
+      - ../.env
+    command: ["celery", "-A", "app", "beat", "--loglevel=info"]
+    container_name: "evreka-celery-beat"
+  # Redis cache
+  redis:
+    image: redis:7.0-alpine
+    ports:
+      - "6379:6379"
+    container_name: "evreka-redis"        
+
+volumes:
+  postgres_data:
