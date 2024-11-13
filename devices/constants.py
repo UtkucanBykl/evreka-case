@@ -1,0 +1,1 @@
+DEVICES_LAST_DATA_CACHE_KEY = '{}-devices:last_data'

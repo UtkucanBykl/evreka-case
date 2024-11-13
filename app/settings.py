@@ -43,10 +43,18 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    
+    # Add required apps
+    "rest_framework",
+    "django_celery_results",
+    "django_celery_beat",
+    "corsheaders",
+    "devices",  # Your custom app
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",  # Add CORS support
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -81,13 +89,16 @@ WSGI_APPLICATION = "app.wsgi.application"
 
 DATABASES = {
     'default': {
-        'ENGINE': env.str('DB_ENGINE', default='django.db.backends.sqlite3'),
-        'NAME': env.str('DB_NAME', default=str(BASE_DIR / 'db.sqlite3')),
-        'USER': env.str('DB_USER', default=''),
+        'ENGINE': env.str('DB_ENGINE', default='django.db.backends.postgresql'),
+        'NAME': env.str('DB_NAME', default='geolocation'),
+        'USER': env.str('DB_USER', default='postgres'),
         'PASSWORD': env.str('DB_PASSWORD', default=''),
-        'HOST': env.str('DB_HOST', default=''),
-        'PORT': env.str('DB_PORT', default=''),
-        'CONN_MAX_AGE': env.int('DB_CONN_MAX_AGE', default=0),
+        'HOST': env.str('DB_HOST', default='localhost'),
+        'PORT': env.str('DB_PORT', default='5432'),
+        'CONN_MAX_AGE': env.int('DB_CONN_MAX_AGE', default=60),
+        'OPTIONS': {
+            'connect_timeout': 10,
+        }
     }
 }
 
@@ -132,3 +143,42 @@ STATIC_URL = env.str('STATIC_URL', default="static/")
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Celery Configuration
+CELERY_BROKER_URL = env.str(
+    'CELERY_BROKER_URL',
+    default=f"amqp://{env.str('RABBITMQ_USER')}:{env.str('RABBITMQ_PASSWORD')}@rabbitmq:5672//"
+)
+CELERY_RESULT_BACKEND = env.str(
+    'CELERY_RESULT_BACKEND',
+    default="redis://redis:6379/0"
+)
+
+# Celery Configuratidason Options
+CELERY_TIMEZONE = TIME_ZONE
+
+
+# REST Framework settings
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+    'PAGE_SIZE': 100,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '1000/day',
+        'user': '10000/day'
+    }
+}
+
+# Redis cache settings
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": env.str('REDIS_URL', default="redis://redis:6379/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
