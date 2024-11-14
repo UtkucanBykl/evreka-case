@@ -1,6 +1,5 @@
 from django.db import models
 
-# Create your models here.
 
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
@@ -68,7 +67,7 @@ class Location(models.Model):
 
 
 
-class LocationSummary(models.Model):
+class LocationDailySummary(models.Model):
     device = models.OneToOneField(
         Device,
         on_delete=models.CASCADE,
@@ -76,14 +75,12 @@ class LocationSummary(models.Model):
     )
     first_location = models.ForeignKey(
         Location,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         related_name='summary_as_first'
     )
     last_location = models.ForeignKey(
         Location,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         related_name='summary_as_last'
     )
     max_speed = models.DecimalField(
@@ -93,10 +90,10 @@ class LocationSummary(models.Model):
     )
     max_speed_location = models.ForeignKey(
         Location,
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         related_name='summary_as_max_speed'
     )
-    updated_at = models.DateTimeField(auto_now=True)
+    summary_day = models.DateField()
 
     def __str__(self):
         return f"Summary for {self.device.name}"
@@ -104,6 +101,12 @@ class LocationSummary(models.Model):
     class Meta:
         verbose_name_plural = "Location summaries"
         indexes = [
-            models.Index(fields=['updated_at']),
+            models.Index(fields=['summary_day']),
             models.Index(fields=['device']),
+            models.Index(fields=['device', 'summary_day'], include=('max_speed', 'max_speed_location', 'first_location', 'last_location'), name='summary_covering_idx'),
         ]
+
+    def save(self, *args, **kwargs):
+        if not self.summary_day:
+            self.summary_day = self.last_location.timestamp.date()
+        super().save(*args, **kwargs)

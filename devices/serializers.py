@@ -2,8 +2,9 @@ from celery import chain
 
 from rest_framework import serializers
 
-from devices.models import Device
+from devices.models import Device, Location
 from devices.tasks import create_new_location, update_or_create_location_summary
+
 
 class LocationCreateSerializer(serializers.Serializer):
     device_id = serializers.PrimaryKeyRelatedField(queryset=Device.objects.all())
@@ -26,7 +27,7 @@ class LocationCreateSerializer(serializers.Serializer):
                 device_id=validated_data['device_id'],
                 latitude=float(validated_data['latitude']), 
                 longitude=float(validated_data['longitude']),
-                speed=float(validated_data['speed']) if validated_data.get('speed') else None
+                speed=float(validated_data['speed'])
             ),
             update_or_create_location_summary.s()
         )
@@ -52,7 +53,6 @@ class LocationReadSerializer(serializers.ModelSerializer):
     device = DeviceSerializer()
 
     class Meta:
-        from devices.models import Location
         model = Location
         fields = (
             'id',

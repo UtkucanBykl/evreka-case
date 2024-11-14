@@ -1,20 +1,34 @@
 import os
 from celery import Celery
 
-# Set the default Django settings module for the 'celery' program
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'app.settings')
 
-# Create Celery app
 app = Celery('app')
 
-# Configure Celery using Django settings
-# namespace='CELERY' means all celery-related configuration keys should have a `CELERY_` prefix
+
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
 # Auto-discover tasks in all installed apps
 app.autodiscover_tasks()
 
 
-@app.task(bind=True, ignore_result=True)
-def debug_task(self):
-    print(f'Request: {self.request!r}') 
+app.conf.task_default_queue = 'default'
+app.conf.task_queues = {
+    'default': {
+        'exchange': 'default',
+        'routing_key': 'default',
+    },
+    'high_priority': {
+        'exchange': 'high_priority',
+        'routing_key': 'high_priority',
+    },
+    'low_priority': {
+        'exchange': 'low_priority', 
+        'routing_key': 'low_priority',
+    }
+}
+
+app.conf.task_routes = {
+    'devices.*': {'queue': 'high_priority'},
+    '*': {'queue': 'default'}
+}

@@ -3,8 +3,9 @@ from celery import shared_task
 from django.core.cache import cache
 from django.utils import timezone
 
-from devices.models import Device, Location, LocationSummary
+from devices.models import Device, Location, LocationDailySummary
 from devices.constants import DEVICES_LAST_DATA_CACHE_KEY
+
 
 logger = logging.getLogger('django')
 
@@ -14,11 +15,14 @@ logger = logging.getLogger('django')
     autoretry_for=(Exception,),
     retry_backoff=True,
     retry_kwargs={'max_retries': 5},
-    rate_limit='100/m'
+    rate_limit='100/m',
+    queue='high_priority'
 )
 def create_new_location(
     self, device_id: int, latitude: float, longitude: float, speed: float | None = None
 ) -> Location:
+    from devices.serializers import LocationReadSerializer
+
     try:
         device = Device.objects.get(id=device_id, is_active=True)
         
@@ -31,15 +35,9 @@ def create_new_location(
             timestamp=timezone.now()
         )
         
-        # Update cache with latest location data
         cache_key = DEVICES_LAST_DATA_CACHE_KEY.format(device_id)
-        cache_data = {
-            'latitude': float(location.latitude),
-            'longitude': float(location.longitude),
-            'speed': float(location.speed) if location.speed else 0,
-            'timestamp': location.timestamp.isoformat(),
-        }
-        cache.set(cache_key, cache_data, timeout=3600)  # Cache for 1 hour
+        location_data = LocationReadSerializer(location).data
+        cache.set(cache_key, location_data, timeout=3600)
 
         return location
 
@@ -56,7 +54,8 @@ def create_new_location(
     autoretry_for=(Exception,),
     retry_backoff=True,
     retry_kwargs={'max_retries': 5},
-    rate_limit='100/m'
+    rate_limit='100/m',
+    queue='high_priority'
 )
 def update_or_create_location_summary(self, location_id: int) -> bool:
     try:
@@ -65,7 +64,7 @@ def update_or_create_location_summary(self, location_id: int) -> bool:
         device = location.device
 
         # Get or create location summary
-        location_summary, created = LocationSummary.objects.get_or_create(
+        location_summary, created = LocationDailySummary.objects.get_or_create(
             device=device,
             defaults={
                 "first_location": location,

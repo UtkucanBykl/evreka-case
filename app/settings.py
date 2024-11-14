@@ -44,17 +44,14 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     
-    # Add required apps
     "rest_framework",
     "django_celery_results",
     "django_celery_beat",
-    "corsheaders",
-    "devices",  # Your custom app
+    "devices",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "corsheaders.middleware.CorsMiddleware",  # Add CORS support
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -154,7 +151,6 @@ CELERY_RESULT_BACKEND = env.str(
     default="redis://redis:6379/0"
 )
 
-# Celery Configuratidason Options
 CELERY_TIMEZONE = TIME_ZONE
 
 
