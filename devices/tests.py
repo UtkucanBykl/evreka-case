@@ -1,9 +1,11 @@
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.utils import timezone
 from django.test import TestCase
 from django.urls import reverse
 from django.core.cache import cache
+
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -79,6 +81,32 @@ class LocationViewSetTests(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['results']), 1)
+
+    def test_filter_locations_by_date(self):
+        # Create locations on different dates
+        yesterday = timezone.now() - timezone.timedelta(days=1)
+        today = timezone.now()
+        search_date = today - timezone.timedelta(minutes=10)
+        Location.objects.create(
+            device=self.device,
+            latitude=Decimal('41.015137'),
+            longitude=Decimal('28.979530'),
+            speed=Decimal('50.25'),
+            timestamp=yesterday
+        )
+        location_today = Location.objects.create(
+            device=self.device,
+            latitude=Decimal('41.025137'),
+            longitude=Decimal('28.989530'), 
+            speed=Decimal('60.25'),
+            timestamp=today
+        )
+
+        url = f"{reverse('location-list')}?start_date={search_date.strftime('%Y-%m-%dT%H:%M:%S')}"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), 1)
+        self.assertEqual(Decimal(response.data['results'][0]['speed']), location_today.speed)
 
 
 class TaskTests(TestCase):

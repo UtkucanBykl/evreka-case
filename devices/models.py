@@ -51,7 +51,7 @@ class Location(models.Model):
         decimal_places=2,
         help_text="Speed in kilometers per hour"
     )
-    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    timestamp = models.DateTimeField()
     
     def __str__(self):
         return f"{self.device.name} - {self.timestamp}"
@@ -64,7 +64,10 @@ class Location(models.Model):
         ]
         get_latest_by = 'timestamp'
 
-
+    def save(self, *args, **kwargs):
+        if not self.timestamp:
+            self.timestamp = timezone.now()
+        super().save(*args, **kwargs)
 
 
 class LocationDailySummary(models.Model):
